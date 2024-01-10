@@ -118,7 +118,7 @@ init-peq-editor: ##@init Initializes PEQ editor
 	$(DOCKER) exec eqemu-server bash -c "make init-peq-editor"
 
 init-charbrowser: ##@init Initializes charbrowser
-	$(DOCKER) build charbowser && $(DOCKER) up -d charbrowser
+	$(DOCKER) build charbrowser && $(DOCKER) up -d charbrowser
 	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/ && cp include/config.template include/config.php"
 	$(DOCKER) exec eqemu-server bash -c "make init-charbrowser"
 
