@@ -94,8 +94,7 @@ init-eqemu-config: ##@init Bootstraps eqemu config
     		| jq '.server.world.address = "${IP_ADDRESS}"' \
 			| jq '.server.world.localaddress = "${IP_ADDRESS}"' \
 			| jq '.server.world.loginserver2.host = "${IP_ADDRESS}"' \
-    		| jq '.server.ucs.host = "${IP_ADDRESS}"' \
-			| jq '.server.web-admin.launcher.loginserver = true' \
+    		| jq '.server.ucs.host = "${IP_ADDRESS}"' \			
     		| tee ~/server/eqemu_config.json
 
 init-directories: ##@init Bootstrap directories

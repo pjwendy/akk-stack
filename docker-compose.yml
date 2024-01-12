@@ -140,7 +140,7 @@ services:
     ports:
       - ${IP_ADDRESS}:8083:80
     volumes:
-      - ${DATA_PATH_HOST}/char-browser:/var/www/html
+      - ${DATA_PATH_HOST}/charbrowser:/var/www/html
     environment:
       DB_HOST: mariadb
       DB_NAME: ${MARIADB_DATABASE}
