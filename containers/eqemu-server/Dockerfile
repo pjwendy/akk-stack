@@ -56,6 +56,7 @@ RUN apt-get update && apt-get install -y \
 	make \
 	mariadb-client \
 	minizip \
+	nano \
 	ninja-build \
 	net-tools \
 	openssh-server \
