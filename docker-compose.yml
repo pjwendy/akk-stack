@@ -15,7 +15,7 @@ services:
 
   eqemu-server:
     restart: unless-stopped
-    image: akkadius/eqemu-server:v14
+    image: pjwendy/eqemu-server:v14
     volumes:
       - ./server:/home/eqemu/server:delegated
       - ./code:/home/eqemu/code:delegated
@@ -47,7 +47,7 @@ services:
       - PEQ_EDITOR_PASSWORD=${PEQ_EDITOR_PASSWORD}
       - IP_ADDRESS=${IP_ADDRESS}
       - PORT_RANGE_HIGH=${PORT_RANGE_HIGH}
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ:-Europe/Stockholm}
     tty: true
     networks:
       - backend
@@ -78,7 +78,7 @@ services:
       - MYSQL_PASSWORD=${MARIADB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
       - MYSQL_ALLOW_EMPTY_PASSWORD=NO
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ:-Europe/Stockholm}
     networks:
       - backend
 
@@ -95,7 +95,7 @@ services:
       - BASIC_AUTH_USERNAME=${PHPMYADMIN_USERNAME}
       - BASIC_AUTH_PASSWORD=${PHPMYADMIN_PASSWORD}
       - PROXY_PASS=http://phpmyadmin
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ:-Europe/Stockholm}
     networks:
       - backend
 
@@ -106,7 +106,7 @@ services:
       - PMA_HOST=mariadb
       - PMA_USER=${MARIADB_USER}
       - PMA_PASSWORD=${MARIADB_PASSWORD}
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ:-Europe/Stockholm}
     networks:
       - backend
 
@@ -126,7 +126,7 @@ services:
       DB_NAME: ${MARIADB_DATABASE}
       DB_USER: ${MARIADB_USER}
       DB_PASSWORD: ${MARIADB_PASSWORD}
-      TZ: ${TZ:-US/Central}
+      TZ: ${TZ:-Europe/Stockholm}
     networks:
       - backend
 
@@ -146,7 +146,7 @@ services:
       DB_NAME: ${MARIADB_DATABASE}
       DB_USER: ${MARIADB_USER}
       DB_PASSWORD: ${MARIADB_PASSWORD}
-      TZ: ${TZ:-US/Central}
+      TZ: ${TZ:-Europe/Stockholm}
     networks:
       - backend
   #############################################
@@ -165,7 +165,7 @@ services:
       FTP_MAX_CLIENTS: 25
       FTP_PASSIVE_PORTS: '30000:30049'
       PUBLICHOST: ${IP_ADDRESS}
-      TZ: ${TZ:-US/Central}
+      TZ: ${TZ:-Europe/Stockholm}
     volumes:
       - ./server/quests/:/home/quests/
     ports:
@@ -188,7 +188,7 @@ services:
     volumes:
       - ./:/home/backup-cron/
     environment:
-      TZ: America/Chicago
+      TZ: Europe/Stockholm
     #      HOST_NAME: ${HOSTNAME:-default}
     #      HOST_DIR: ${PWD}
     networks:
