@@ -100,7 +100,6 @@ install: ##@init Install full application port-range-high=[] ip-address=[]
 	make init-strip-mysql-remote-root
 	$(DOCKER) exec eqemu-server bash -c "make install"
 	make init-peq-editor
-	make init-charbrowser
 	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) down --timeout 3
 	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) up -d
 	make up-info
@@ -117,10 +116,6 @@ init-peq-editor: ##@init Initializes PEQ editor
 	$(DOCKER) exec peq-editor bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/ProjectEQ/peqphpeditor.git /var/www/html && cd /var/www/html/ && cp config.php.dist config.php"
 	$(DOCKER) exec eqemu-server bash -c "make init-peq-editor"
 
-init-charbrowser: ##@init Initializes Char Browser
-	$(DOCKER) build charbrowser && $(DOCKER) up -d charbrowser
-	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/ && cp include/config.template include/config.php"	
-
 #----------------------
 # Image Management
 #----------------------
@@ -129,14 +124,12 @@ image-build-all: ##@image-build Build all images
 	make image-eqemu-server-build
 	make image-eqemu-server-build-dev
 	make image-peq-editor-build
-	make image-charbrowser-build
 	make image-backup-cron-build
 
 image-push-all: ##@image-build Push all images
 	make image-eqemu-server-push
 	make image-eqemu-server-push-dev
 	make image-peq-editor-push
-	make image-charbrowser-push
 	make image-backup-cron-push
 
 image-build-push-all: ##@image-build Build and push all images
@@ -146,16 +139,16 @@ image-build-push-all: ##@image-build Build and push all images
 # eqemu-server
 
 image-eqemu-server-build: ##@image-build Builds image
-	docker build containers/eqemu-server -t pjwendy/eqemu-server:latest
-	docker build containers/eqemu-server -t pjwendy/eqemu-server:v14
+	docker build containers/eqemu-server -t akkadius/eqemu-server:latest
+	docker build containers/eqemu-server -t akkadius/eqemu-server:v14
 
 image-eqemu-server-build-dev: ##@image-build Builds image (development)
 	make image-eqemu-server-build
 	docker build -f ./containers/eqemu-server/dev.dockerfile ./containers/eqemu-server -t akkadius/eqemu-server:v14-dev
 
 image-eqemu-server-push: ##@image-build Publishes image
-	docker push pjwendy/eqemu-server:latest
-	docker push pjwendy/eqemu-server:v14
+	docker push akkadius/eqemu-server:latest
+	docker push akkadius/eqemu-server:v14
 
 image-eqemu-server-push-dev: ##@image-build Publishes image
 	docker push akkadius/eqemu-server:v14-dev
@@ -167,14 +160,6 @@ image-peq-editor-build: ##@image-build Builds image
 
 image-peq-editor-push: ##@image-build Publishes image
 	docker push akkadius/peq-editor:latest
-
-# peq-editor
-
-image-charbrowser-build: ##@image-build Builds image
-	docker build containers/charbrowser -t pjwendy/charbrowser:latest
-
-image-charbrowser-push: ##@image-build Publishes image
-	docker push pjwendy/charbrowser:latest
 
 # backup-cron
 
@@ -276,10 +261,9 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
-	@echo "> PEQ Editor   | http://${IP_ADDRESS}:8081"
-	@echo "> PhpMyAdmin   | http://${IP_ADDRESS}:8082"
-	@echo "> Char Browser | http://${IP_ADDRESS}:8083"
-	@echo "> EQEmu Admin  | http://${IP_ADDRESS}:3000"
+	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081"
+	@echo "> PhpMyAdmin  | http://${IP_ADDRESS}:8082"
+	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
 	@echo "> Spire Backend Development  | http://${IP_ADDRESS}:3010"
