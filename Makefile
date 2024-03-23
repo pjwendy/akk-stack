@@ -78,6 +78,27 @@ ifneq ($(ip-address),)
 endif
 
 #----------------------
+# services
+#----------------------
+
+RUN_SERVICES=
+ifeq ($(ENABLE_FTP_QUESTS),true)
+	RUN_SERVICES+= ftp-quests
+endif
+
+ifeq ($(ENABLE_PHPMYADMIN),true)
+	RUN_SERVICES+= phpmyadmin
+endif
+
+ifeq ($(ENABLE_PEQ_EDITOR),true)
+	RUN_SERVICES+= peq-editor
+endif
+
+ifeq ($(ENABLE_BACKUP_CRON),true)
+	RUN_SERVICES+= backup-cron
+endif
+
+#----------------------
 # env
 #----------------------
 
@@ -100,8 +121,8 @@ install: ##@init Install full application port-range-high=[] ip-address=[]
 	make init-strip-mysql-remote-root
 	$(DOCKER) exec eqemu-server bash -c "make install"
 	make init-peq-editor
-	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) down --timeout 3
-	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) up -d
+	make down
+	make up
 	make up-info
 
 init-strip-mysql-remote-root: ##@init Strips MySQL remote root user
@@ -199,7 +220,7 @@ watch-processes: ##@workflow Watch processes
 #----------------------
 
 up: ##@docker Bring up eqemu-server and database
-	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) up -d eqemu-server mariadb
+	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) up -d eqemu-server mariadb $(RUN_SERVICES)
 	make up-info
 
 down: ##@docker Down all containers
@@ -222,7 +243,7 @@ env-scramble-secrets: ##@env Scrambles secrets
 env-set-zone-port-range-high: ##@env Set zone port range high value
 	$(DOCKER) up -d eqemu-server
 	@assets/scripts/env-set-var.pl PORT_RANGE_HIGH $(RUN_ARGS)
-	$(DOCKER) exec eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.server.zones.ports.high = "${PORT_RANGE_HIGH}"' | tee ~/server/eqemu_config.json"
+	$(DOCKER) exec eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.server.zones.ports.high = "${PORT_RANGE_HIGH}"' -M > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json && rm -f /tmp/config.json"
 	$(DOCKER) up -d --force-recreate eqemu-server
 
 #----------------------
