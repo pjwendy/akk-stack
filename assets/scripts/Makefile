@@ -86,11 +86,15 @@ init-eqemu-config: ##@init Bootstraps eqemu config
 	@./assets/scripts/banner.pl "Initializing EQEmu Config"
 	@make pull-docker-config
 	@cat ~/server/eqemu_config.json \
-             | jq --arg dbpass "$(EQEMU_DB_PASSWORD)" '.server.database.password = $$dbpass' \
-             | jq --arg ipaddr "$(IP_ADDRESS)" '.server.world.address = $$ipaddr | .server.ucs.host = $$ipaddr' \
-             | jq --arg porthigh "$(PORT_RANGE_HIGH)" '.server.zones.ports.high = $$porthigh' \
-             | jq --arg random_string "$$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)" '.server.world.key = $$random_string' \
-             -M > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json && rm -f /tmp/config.json
+    | jq '.server.database.password = "${EQEMU_DB_PASSWORD}"' \
+    | jq '.server.world.key = "$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $${1:-32} | head -n 1)"' \
+    | jq '.server.zones.ports.high = "${PORT_RANGE_HIGH}"' \
+	  | jq '.server.world.shortname = "Honeytree"' \
+	  | jq '.server.world.longname = "Honeytree"' \
+    | jq '.server.world.address = "${IP_ADDRESS}"' \
+	  | jq '.server.world.localaddress = "${IP_ADDRESS}"' \
+	  | jq '.server.ucs.host = "${IP_ADDRESS}"' \
+    | tee ~/server/eqemu_config.json
 
 init-directories: ##@init Bootstrap directories
 	@./assets/scripts/banner.pl "Bootstrapping directories"
