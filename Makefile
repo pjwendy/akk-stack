@@ -94,9 +94,19 @@ ifeq ($(ENABLE_PEQ_EDITOR),true)
 	RUN_SERVICES+= peq-editor
 endif
 
+ifeq ($(ENABLE_CHARBROWSER),true)
+	RUN_SERVICES+= charbrowser
+endif
+
+ifeq ($(ENABLE_ALLAKHAZAM),true)
+	RUN_SERVICES+= allakhazam
+endif
+
 ifeq ($(ENABLE_BACKUP_CRON),true)
 	RUN_SERVICES+= backup-cron
 endif
+
+$(info RUN_SERVICES = $(RUN_SERVICES))
 
 #----------------------
 # env
@@ -121,6 +131,8 @@ install: ##@init Install full application port-range-high=[] ip-address=[]
 	make init-strip-mysql-remote-root
 	$(DOCKER) exec eqemu-server bash -c "make install"
 	make init-peq-editor
+	make init-charbrowser
+	make init-allakhazam
 	make down
 	make up
 	make up-info
@@ -138,6 +150,14 @@ init-peq-editor: ##@init Initializes PEQ editor
 	$(DOCKER) exec peq-editor bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/ProjectEQ/peqphpeditor.git /var/www/html && cd /var/www/html/ && cp config.php.dist config.php"
 	$(DOCKER) exec eqemu-server bash -c "make init-peq-editor"
 
+init-charbrowser: ##@init Initializes charbrowser
+	$(DOCKER) build charbrowser && $(DOCKER) up -d charbrowser	
+	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/include/ && cp config.template config.php"
+	
+init-allakhazam: ##@init Initializes Allakhazam
+	$(DOCKER) build allakhazam && $(DOCKER) up -d allakhazam	
+	$(DOCKER) exec allakhazam bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/Akkadius/EQEmuAllakhazamClone.git /var/www/html && cd /var/www/html/includes/ && cp config.template.php config.php"
+
 #----------------------
 # Image Management
 #----------------------
@@ -146,12 +166,16 @@ image-build-all: ##@image-build Build all images
 	make image-eqemu-server-build
 	make image-eqemu-server-build-dev
 	make image-peq-editor-build
+	make image-charbrowser-build
+	make image-allakhazam-build
 	make image-backup-cron-build
 
 image-push-all: ##@image-build Push all images
 	make image-eqemu-server-push
 	make image-eqemu-server-push-dev
 	make image-peq-editor-push
+	make image-charbrowser-push
+	make image-allakhazam-push
 	make image-backup-cron-push
 
 image-build-push-all: ##@image-build Build and push all images
@@ -182,6 +206,22 @@ image-peq-editor-build: ##@image-build Builds image
 
 image-peq-editor-push: ##@image-build Publishes image
 	docker push akkadius/peq-editor:latest
+
+# charbrowser
+
+image-charbrowser-build: ##@image-build Builds image
+	docker build containers/charbrowser -t pjwendy/charbrowser:latest
+
+image-charbrowser-push: ##@image-build Publishes image
+	docker push pjwendy/charbrowser:latest
+
+# allakhazam
+
+image-allakhazam-build: ##@image-build Builds image
+	docker build containers/allakhazam -t pjwendy/allakhazam:latest
+
+image-allakhazam-push: ##@image-build Publishes image
+	docker push pjwendy/allakhazam:latest
 
 # backup-cron
 
@@ -269,9 +309,19 @@ info: ##@info Print install info
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
+ifeq ($(ENABLE_PEQ_EDITOR),true)
 	@echo "> PEQ Editor (proxy) | http://${IP_ADDRESS}:8081 | ${PEQ_EDITOR_PROXY_USERNAME} / ${PEQ_EDITOR_PROXY_PASSWORD}"
 	@echo "> PEQ Editor (app)   | http://${IP_ADDRESS}:8081 | admin / ${PEQ_EDITOR_PASSWORD}"
+endif
+ifeq ($(ENABLE_PHPMYADMIN),true)
 	@echo "> PhpMyAdmin         | http://${IP_ADDRESS}:8082 | admin / ${PHPMYADMIN_PASSWORD}"
+endif
+ifeq ($(ENABLE_CHARBROWSER),true)
+	@echo "> Charbrowser | http://${IP_ADDRESS}:8083"
+endif
+ifeq ($(ENABLE_ALLAKHAZAM),true)
+	@echo "> Allakhazam  | http://${IP_ADDRESS}:8084"
+endif
 	@echo "> EQEmu Admin        | http://${IP_ADDRESS}:3000 | admin / $(shell $(DOCKER) exec -T eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.[\"web-admin\"].application.admin.password'")"
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
@@ -284,8 +334,18 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
+ifeq ($(ENABLE_PEQ_EDITOR),true)
 	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081"
+endif
+ifeq ($(ENABLE_PHPMYADMIN),true)
 	@echo "> PhpMyAdmin  | http://${IP_ADDRESS}:8082"
+endif
+ifeq ($(ENABLE_CHARBROWSER),true)
+	@echo "> Charbrowser | http://${IP_ADDRESS}:8083"
+endif
+ifeq ($(ENABLE_ALLAKHAZAM),true)
+	@echo "> Allakhazam  | http://${IP_ADDRESS}:8084"
+endif
 	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
