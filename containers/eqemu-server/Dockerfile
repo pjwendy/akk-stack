@@ -53,6 +53,8 @@ RUN apt-get update && apt-get install -y \
 	libsodium-dev \
 	libssl-dev \
 	lua5.1 \
+	nano \
+	tmux \
 	make \
 	mariadb-client \
 	minizip \
@@ -134,6 +136,10 @@ RUN chmod 0644 /etc/cron.d/logrotate
 
 # Ensure cron runs on container start
 RUN crontab /etc/cron.d/logrotate
+
+# Make sure that ssh auth log is created and owned by eqemu
+RUN touch /var/log/auth.log && \
+    chown eqemu:eqemu /var/log/auth.log
 
 #############################################
 # entrypoint script

@@ -15,8 +15,9 @@ services:
   #############################################
 
   eqemu-server:
+    hostname: ${SERVER_HOSTNAME:-}
     restart: unless-stopped
-    image: akkadius/eqemu-server:v15
+    image: akkadius/eqemu-server:v16
     volumes:
       - ./server:/home/eqemu/server:delegated
       - ./code:/home/eqemu/code:delegated
@@ -40,8 +41,9 @@ services:
       - ${IP_ADDRESS}:6000:6000/tcp
       - ${IP_ADDRESS}:7778:7778/tcp
       - ${IP_ADDRESS}:7778:7778/udp
-      - ${IP_ADDRESS}:7000-${PORT_RANGE_HIGH}:7000-${PORT_RANGE_HIGH}/tcp
-      - ${IP_ADDRESS}:7000-${PORT_RANGE_HIGH}:7000-${PORT_RANGE_HIGH}/udp
+      - ${IP_ADDRESS}:9500:9500/tcp
+      - ${IP_ADDRESS}:9500:9500/udp
+      - ${IP_ADDRESS}:${PORT_RANGE_LOW:-7000}-${PORT_RANGE_HIGH}:${PORT_RANGE_LOW:-7000}-${PORT_RANGE_HIGH}/udp
     environment:
       - SPIRE_PORT=${SPIRE_PORT:-3000}
       - SPIRE_ADMIN_PASSWORD=${SPIRE_ADMIN_PASSWORD:-}
@@ -61,7 +63,7 @@ services:
       - SYS_PTRACE
     cpu_shares: 900
     depends_on:
-      - fail2ban
+      - fail2ban-server
 
   #############################################
   # mariadb
@@ -88,16 +90,16 @@ services:
     networks:
       - backend
     depends_on:
-      - fail2ban
+      - fail2ban-mysqld
 
   #############################################
   # fail2ban
   #############################################
 
-  fail2ban:
+  fail2ban-server:
     restart: unless-stopped
     build:
-      context: ./containers/fail2ban
+      context: containers/fail2ban-server
     network_mode: host
     cap_add:
       - NET_ADMIN
@@ -113,6 +115,25 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /var/log:/var/log:ro
       - eqemu-var-log:/eqemu/var/log/
+
+  fail2ban-mysqld:
+    restart: unless-stopped
+    build:
+      context: containers/fail2ban-mariadb
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - F2B_LOG_LEVE=DEBUG
+      - F2B_DB_PURGE_AGE=30d
+      - F2B_MAX_RETRY=3
+      - F2B_ACTION=%(action_)s
+      - F2B_IPTABLES_CHAIN=DOCKER-USER
+      - TZ=${TZ:-US/Central}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/log:/var/log:ro
       - mariadb-var-log:/mariadb/var/log/mysql/
 
   #############################################
@@ -149,11 +170,24 @@ services:
   # peq editor
   #############################################
 
-  peq-editor:
-    image: akkadius/peq-editor:latest
+  peq-editor-proxy:
+    build: ./containers/http-proxy
     restart: unless-stopped
     ports:
-      - ${IP_ADDRESS}:8081:80
+      - "${IP_ADDRESS}:8081:80"
+    environment:
+      - BASIC_AUTH_USERNAME=${PEQ_EDITOR_PROXY_USERNAME:-peq-editor}
+      - BASIC_AUTH_PASSWORD=${PEQ_EDITOR_PROXY_PASSWORD}
+      - PROXY_PASS=http://peq-editor
+      - TZ=${TZ:-US/Central}
+    networks:
+      - backend
+
+  peq-editor:
+    depends_on:
+      - peq-editor-proxy
+    image: akkadius/peq-editor:latest
+    restart: unless-stopped
     volumes:
       - ${DATA_PATH_HOST}/peq-editor:/var/www/html
     environment:

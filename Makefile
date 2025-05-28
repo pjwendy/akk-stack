@@ -114,7 +114,7 @@ install: ##@init Install full application port-range-high=[] ip-address=[]
 	$(DOCKER) pull
 	@assets/scripts/env-set-var.pl IP_ADDRESS $(IN_IP_ADDRESS)
 	@assets/scripts/env-set-var.pl PORT_RANGE_HIGH $(IN_PORT_RANGE_HIGH)
-	$(DOCKER) build mariadb fail2ban
+	$(DOCKER) build mariadb fail2ban-server fail2ban-mysqld
 	make up detached
 	@assets/scripts/env-set-var.pl
 	$(DOCKER) exec mariadb bash -c 'while ! mysqladmin status -uroot -p${MARIADB_ROOT_PASSWORD} -h "localhost" --silent; do sleep .5; done; sleep 5'
@@ -134,6 +134,7 @@ init-reset-env: ##@init Resets .env
 
 init-peq-editor: ##@init Initializes PEQ editor
 	$(DOCKER) build peq-editor && $(DOCKER) up -d peq-editor
+	$(DOCKER) build peq-editor-proxy && $(DOCKER) up -d peq-editor-proxy
 	$(DOCKER) exec peq-editor bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/ProjectEQ/peqphpeditor.git /var/www/html && cd /var/www/html/ && cp config.php.dist config.php"
 	$(DOCKER) exec eqemu-server bash -c "make init-peq-editor"
 
@@ -161,18 +162,18 @@ image-build-push-all: ##@image-build Build and push all images
 
 image-eqemu-server-build: ##@image-build Builds image
 	docker build containers/eqemu-server -t akkadius/eqemu-server:latest
-	docker build containers/eqemu-server -t akkadius/eqemu-server:v15
+	docker build containers/eqemu-server -t akkadius/eqemu-server:v16
 
 image-eqemu-server-build-dev: ##@image-build Builds image (development)
 	make image-eqemu-server-build
-	docker build -f ./containers/eqemu-server/dev.dockerfile ./containers/eqemu-server -t akkadius/eqemu-server:v15-dev
+	docker build -f ./containers/eqemu-server/dev.dockerfile ./containers/eqemu-server -t akkadius/eqemu-server:v16-dev
 
 image-eqemu-server-push: ##@image-build Publishes image
 	docker push akkadius/eqemu-server:latest
-	docker push akkadius/eqemu-server:v15
+	docker push akkadius/eqemu-server:v16
 
 image-eqemu-server-push-dev: ##@image-build Publishes image
-	docker push akkadius/eqemu-server:v15-dev
+	docker push akkadius/eqemu-server:v16-dev
 
 # peq-editor
 
@@ -268,9 +269,10 @@ info: ##@info Print install info
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
-	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081 | admin / ${PEQ_EDITOR_PASSWORD}"
-	@echo "> PhpMyAdmin  | http://${IP_ADDRESS}:8082 | admin / ${PHPMYADMIN_PASSWORD}"
-	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000 | admin / $(shell $(DOCKER) exec -T eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.[\"web-admin\"].application.admin.password'")"
+	@echo "> PEQ Editor (proxy) | http://${IP_ADDRESS}:8081 | ${PEQ_EDITOR_PROXY_USERNAME} / ${PEQ_EDITOR_PROXY_PASSWORD}"
+	@echo "> PEQ Editor (app)   | http://${IP_ADDRESS}:8081 | admin / ${PEQ_EDITOR_PASSWORD}"
+	@echo "> PhpMyAdmin         | http://${IP_ADDRESS}:8082 | admin / ${PHPMYADMIN_PASSWORD}"
+	@echo "> EQEmu Admin        | http://${IP_ADDRESS}:3000 | admin / $(shell $(DOCKER) exec -T eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.[\"web-admin\"].application.admin.password'")"
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
 	@echo "> Spire Backend Development  | http://${IP_ADDRESS}:3010 | "
@@ -330,3 +332,11 @@ backup-dropbox-all: ##@backup Backup all assets to Dropbox
 	make backup-dropbox-database
 	make backup-dropbox-quests
 	make backup-dropbox-deployment
+
+#----------------------
+# show
+#----------------------
+
+show-fail2ban: ##@show Show fail2ban logs
+	docker-compose exec fail2ban-server fail2ban-client status sshd
+	docker-compose exec fail2ban-mysqld fail2ban-client status mysqld-auth
