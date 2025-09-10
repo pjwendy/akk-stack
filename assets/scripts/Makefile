@@ -279,10 +279,11 @@ init-build: ##@build Initialize build
 		cmake \
 			-DEQEMU_BUILD_LOGIN=ON \
 			-DEQEMU_BUILD_LUA=ON \
+			-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 			-DPERL_LIBRARY=/opt/eqemu-perl/lib/5.32.1/$(PERL_ARCH)/CORE/libperl.so \
 			-DPERL_EXECUTABLE=/opt/eqemu-perl/bin/perl \
 			-DPERL_INCLUDE_PATH=/opt/eqemu-perl/lib/5.32.1/$(PERL_ARCH)/CORE/ \
-			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-O1 -g -DNDEBUG -Wno-everything" \
+			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-Wno-everything" \
 			-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -G 'Unix Makefiles' ..
 
 init-dev-build: ##@build Initialize build for development (faster compiles, uses ninja)
@@ -300,7 +301,7 @@ init-dev-build: ##@build Initialize build for development (faster compiles, uses
 			-DPERL_EXECUTABLE=/opt/eqemu-perl/bin/perl \
 			-DPERL_INCLUDE_PATH=/opt/eqemu-perl/lib/5.32.1/$(PERL_ARCH)/CORE/ \
 			-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold \
-			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-O0 -g -DNDEBUG -Os -Wno-everything" -G "Ninja" ..
+			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-O0 -g -Wno-everything -fno-lto" -G "Ninja" ..
 
 build: ##@build Build EQEmu server
 	@./assets/scripts/banner.pl "Building EQEmu Server"
