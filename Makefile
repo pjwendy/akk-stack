@@ -121,6 +121,8 @@ install: ##@init Install full application port-range-high=[] ip-address=[]
 	make init-strip-mysql-remote-root
 	$(DOCKER) exec eqemu-server bash -c "make install"
 	make init-peq-editor
+	make init-charbrowser
+	make init-allakhazam
 	make down
 	make up
 	make up-info
@@ -138,6 +140,14 @@ init-peq-editor: ##@init Initializes PEQ editor
 	$(DOCKER) exec peq-editor bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/ProjectEQ/peqphpeditor.git /var/www/html && cd /var/www/html/ && cp config.php.dist config.php"
 	$(DOCKER) exec eqemu-server bash -c "make init-peq-editor"
 
+init-charbrowser: ##@init Initializes charbrowser
+	$(DOCKER) build charbrowser && $(DOCKER) up -d charbrowser	
+	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/ && cp include/config.template include/config.php"
+	
+init-allakhazam: ##@init Initializes Allakhazam
+	$(DOCKER) build allakhazam && $(DOCKER) up -d allakhazam	
+	$(DOCKER) exec allakhazam bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/Akkadius/EQEmuAllakhazamClone.git /var/www/html && cd /var/www/html/ && cp includes/config.template.php includes/config.php"
+
 #----------------------
 # Image Management
 #----------------------
@@ -146,12 +156,16 @@ image-build-all: ##@image-build Build all images
 	make image-eqemu-server-build
 	make image-eqemu-server-build-dev
 	make image-peq-editor-build
+	make image-charbrowser-build
+	make image-allakhazam-build
 	make image-backup-cron-build
 
 image-push-all: ##@image-build Push all images
 	make image-eqemu-server-push
 	make image-eqemu-server-push-dev
 	make image-peq-editor-push
+	make image-charbrowser-push
+	make image-allakhazam-push
 	make image-backup-cron-push
 
 image-build-push-all: ##@image-build Build and push all images
@@ -182,6 +196,22 @@ image-peq-editor-build: ##@image-build Builds image
 
 image-peq-editor-push: ##@image-build Publishes image
 	docker push akkadius/peq-editor:latest
+
+# charbrowser
+
+image-charbrowser-build: ##@image-build Builds image
+	docker build containers/charbrowser -t pjwendy/charbrowser:latest
+
+image-charbrowser-push: ##@image-build Publishes image
+	docker push pjwendy/charbrowser:latest
+
+# allakhazam
+
+image-allakhazam-build: ##@image-build Builds image
+	docker build containers/allakhazam -t pjwendy/allakhazam:latest
+
+image-allakhazam-push: ##@image-build Publishes image
+	docker push pjwendy/allakhazam:latest
 
 # backup-cron
 
@@ -286,6 +316,8 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "----------------------------------"
 	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081"
 	@echo "> PhpMyAdmin  | http://${IP_ADDRESS}:8082"
+	@echo "> Charbrowser | http://${IP_ADDRESS}:8083"
+	@echo "> Allakhazam  | http://${IP_ADDRESS}:8084"
 	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
