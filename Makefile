@@ -334,24 +334,19 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
+	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ($(ENABLE_PEQ_EDITOR),true)
 	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081"
 endif
 ifeq ($(ENABLE_PHPMYADMIN),true)
 	@echo "> PhpMyAdmin  | http://${IP_ADDRESS}:8082"
-<<<<<<< HEAD
-	@echo "> Charbrowser | http://${IP_ADDRESS}:8083"
-	@echo "> Allakhazam  | http://${IP_ADDRESS}:8084"
-=======
 endif
 ifeq ($(ENABLE_CHARBROWSER),true)
 	@echo "> Charbrowser | http://${IP_ADDRESS}:8083"
 endif
 ifeq ($(ENABLE_ALLAKHAZAM),true)
 	@echo "> Allakhazam  | http://${IP_ADDRESS}:8084"
-endif
->>>>>>> ca67967f196c5a858c5d32429385c2eb0ac19734
-	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
+endif	
 ifeq ("$(SPIRE_DEV)", "true")
 	@echo "----------------------------------"
 	@echo "> Spire Backend Development  | http://${IP_ADDRESS}:3010"

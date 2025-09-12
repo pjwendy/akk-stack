@@ -1,0 +1,14 @@
+# docker-compose.override.yml
+services:
+  eqemu-server:
+    environment:
+      - TZ=Europe/Stockholm
+  eqemu-loginserver:
+    environment:
+      - TZ=Europe/Stockholm
+  mariadb:
+    environment:
+      - TZ=Europe/Stockholm
+  spire:
+    environment:
+      - TZ=Europe/Stockholm

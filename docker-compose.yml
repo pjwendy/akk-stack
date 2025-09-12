@@ -241,26 +241,6 @@ services:
       - backend
 
   #############################################
-  # allakhazam
-  #############################################
-
-  allakhazam:
-    image: pjwendy/allakhazam:latest
-    restart: unless-stopped
-    ports:
-      - ${IP_ADDRESS}:8084:80
-    volumes:
-      - ${DATA_PATH_HOST}/allakhazam:/var/www/html
-    environment:
-      DB_HOST: mariadb
-      DB_NAME: ${MARIADB_DATABASE}
-      DB_USER: ${MARIADB_USER}
-      DB_PASSWORD: ${MARIADB_PASSWORD}
-      TZ: ${TZ:-Europe/Stockholm}
-    networks:
-      - backend
-
-  #############################################
   # ftp
   #############################################
 
