@@ -52,7 +52,7 @@ services:
       - PEQ_EDITOR_PASSWORD=${PEQ_EDITOR_PASSWORD}
       - IP_ADDRESS=${IP_ADDRESS}
       - PORT_RANGE_HIGH=${PORT_RANGE_HIGH}
-      - TZ=${TZ:-Europe/Stockholm}
+      - TZ=${TZ}
     tty: true
     networks:
       - backend
@@ -86,7 +86,7 @@ services:
       - MYSQL_PASSWORD=${MARIADB_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
       - MYSQL_ALLOW_EMPTY_PASSWORD=NO
-      - TZ=${TZ:-Europe/Stockholm}
+      - TZ=${TZ}
     networks:
       - backend
     depends_on:
@@ -110,7 +110,7 @@ services:
       - F2B_MAX_RETRY=3
       - F2B_ACTION=%(action_)s
       - F2B_IPTABLES_CHAIN=DOCKER-USER
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/log:/var/log:ro
@@ -130,7 +130,7 @@ services:
       - F2B_MAX_RETRY=3
       - F2B_ACTION=%(action_)s
       - F2B_IPTABLES_CHAIN=DOCKER-USER
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /var/log:/var/log:ro
@@ -149,7 +149,7 @@ services:
       - BASIC_AUTH_USERNAME=${PHPMYADMIN_USERNAME}
       - BASIC_AUTH_PASSWORD=${PHPMYADMIN_PASSWORD}
       - PROXY_PASS=http://phpmyadmin
-      - TZ=${TZ:-Europe/Stockholm}
+      - TZ=${TZ}
     networks:
       - backend
 
@@ -162,7 +162,7 @@ services:
       - PMA_HOST=mariadb
       - PMA_USER=${MARIADB_USER}
       - PMA_PASSWORD=${MARIADB_PASSWORD}
-      - TZ=${TZ:-Europe/Stockholm}
+      - TZ=${TZ}
     networks:
       - backend
 
@@ -179,7 +179,7 @@ services:
       - BASIC_AUTH_USERNAME=${PEQ_EDITOR_PROXY_USERNAME:-peq-editor}
       - BASIC_AUTH_PASSWORD=${PEQ_EDITOR_PROXY_PASSWORD}
       - PROXY_PASS=http://peq-editor
-      - TZ=${TZ:-US/Central}
+      - TZ=${TZ}
     networks:
       - backend
 
@@ -195,7 +195,7 @@ services:
       DB_NAME: ${MARIADB_DATABASE}
       DB_USER: ${MARIADB_USER}
       DB_PASSWORD: ${MARIADB_PASSWORD}
-      TZ: ${TZ:-Europe/Stockholm}
+      TZ: ${TZ}
     networks:
       - backend
 
@@ -216,7 +216,7 @@ services:
       CHARBROWSER_DB_USER: ${MARIADB_USER}
       CHARBROWSER_DB_PASSWORD: ${MARIADB_PASSWORD}
       CHARBROWSER_DB_PORT: 3306
-      TZ: ${TZ:-Europe/Stockholm}
+      TZ: ${TZ}
     networks:
       - backend
 
@@ -236,7 +236,7 @@ services:
       DB_NAME: ${MARIADB_DATABASE}
       DB_USER: ${MARIADB_USER}
       DB_PASSWORD: ${MARIADB_PASSWORD}
-      TZ: ${TZ:-Europe/Stockholm}
+      TZ: ${TZ}
     networks:
       - backend
 
@@ -256,7 +256,7 @@ services:
       FTP_MAX_CLIENTS: 25
       FTP_PASSIVE_PORTS: '30000:30049'
       PUBLICHOST: ${IP_ADDRESS}
-      TZ: ${TZ:-Europe/Stockholm}
+      TZ: ${TZ}
     volumes:
       - ./server/quests/:/home/quests/
     ports:
@@ -279,7 +279,7 @@ services:
     volumes:
       - ./:/home/backup-cron/
     environment:
-      TZ: Europe/Stockholm
+      TZ: ${TZ}
     #      HOST_NAME: ${HOSTNAME:-default}
     #      HOST_DIR: ${PWD}
     networks:
