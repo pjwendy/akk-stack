@@ -121,6 +121,13 @@ set-vars: ##@env Sets var port-range-high=[] ip-address=[]
 #----------------------
 
 install: ##@init Install full application port-range-high=[] ip-address=[]
+	@echo "Checking .env file..."
+	@if [ ! -f .env ]; then echo "ERROR: .env file not found. Copy .env.example to .env and configure it."; exit 1; fi
+	@echo "Environment variables from .env:"
+	@echo "  IP_ADDRESS: ${IP_ADDRESS}"
+	@echo "  PORT_RANGE_HIGH: ${PORT_RANGE_HIGH}"
+	@echo "  MARIADB_PASSWORD: ${MARIADB_PASSWORD}"
+	@echo "  DOCKER: ${DOCKER}"
 	$(DOCKER) pull
 	@assets/scripts/env-set-var.pl IP_ADDRESS $(IN_IP_ADDRESS)
 	@assets/scripts/env-set-var.pl PORT_RANGE_HIGH $(IN_PORT_RANGE_HIGH)
@@ -280,13 +287,19 @@ env-transplant: ##@env Merges values from .env.example into .env (.env is delega
 
 env-scramble-secrets: ##@env Scrambles secrets
 	@assets/scripts/env-scramble-secrets.pl $(RUN_ARGS)
-
+	
 env-set-zone-port-range-high: ##@env Set zone port range high value
 	$(DOCKER) up -d eqemu-server
 	@assets/scripts/env-set-var.pl PORT_RANGE_HIGH $(RUN_ARGS)
-	$(DOCKER) exec eqemu-server bash -c "cat ~/server/eqemu_config.json | jq '.server.zones.ports.high = "${PORT_RANGE_HIGH}"' -M > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json && rm -f /tmp/config.json"
+	@echo "=== Updating zone port range high ==="
+	@echo "PORT_RANGE_HIGH value: ${PORT_RANGE_HIGH}"
+	$(DOCKER) exec eqemu-server bash -c "echo 'Step 1: Reading current config'; cat ~/server/eqemu_config.json > /tmp/config_step0.json"
+	$(DOCKER) exec eqemu-server bash -c "echo 'Step 2: Setting ports.high as STRING'; jq '.server.zones.ports.high = \"${PORT_RANGE_HIGH}\"' /tmp/config_step0.json > /tmp/config_step1.json"
+	$(DOCKER) exec eqemu-server bash -c "echo 'Step 3: Validating result'; jq empty /tmp/config_step1.json && echo 'JSON is valid'"
+	$(DOCKER) exec eqemu-server bash -c "echo 'Step 4: Checking port type'; jq -r '.server.zones.ports.high | \"Value: \" + . + \", Type: \" + (type|tostring)' /tmp/config_step1.json"
+	$(DOCKER) exec eqemu-server bash -c "jq -M . /tmp/config_step1.json > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json"
+	$(DOCKER) exec eqemu-server bash -c "rm -f /tmp/config_step*.json"
 	$(DOCKER) up -d --force-recreate eqemu-server
-
 #----------------------
 # Install
 #----------------------

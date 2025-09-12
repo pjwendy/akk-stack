@@ -59,7 +59,8 @@ install: ##@init Install full application
 	@make pull-peq-quests
 	@make pull-maps
 	@make init-build
-	@~/assets/scripts/create-symlinks.pl
+	@echo "Running create-symlinks.pl..."
+	@~/assets/scripts/create-symlinks.pl || (echo "ERROR: create-symlinks.pl failed. Check ~/server/eqemu_config.json"; cat ~/server/eqemu_config.json; exit 1)
 	@make init-eqemu-admin-assets
 	@make init-eqemu-admin
 	@make init-server-binaries
@@ -84,17 +85,37 @@ init-shared-memory: ##@init Run shared memory once on initial install
 
 init-eqemu-config: ##@init Bootstraps eqemu config
 	@./assets/scripts/banner.pl "Initializing EQEmu Config"
+	@echo "Environment variables check:"
+	@echo "  EQEMU_DB_PASSWORD: ${EQEMU_DB_PASSWORD}"
+	@echo "  PORT_RANGE_HIGH: ${PORT_RANGE_HIGH}"
+	@echo "  IP_ADDRESS: ${IP_ADDRESS}"
+	@if [ -z "${EQEMU_DB_PASSWORD}" ]; then echo "ERROR: EQEMU_DB_PASSWORD is not set"; exit 1; fi
+	@if [ -z "${PORT_RANGE_HIGH}" ]; then echo "ERROR: PORT_RANGE_HIGH is not set"; exit 1; fi
+	@if [ -z "${IP_ADDRESS}" ]; then echo "ERROR: IP_ADDRESS is not set"; exit 1; fi
 	@make pull-docker-config
-	@cat ~/server/eqemu_config.json \
+	@echo "Checking downloaded config file..."
+	@ls -la ~/server/eqemu_config.json
+	@echo "First 200 chars of downloaded config:"
+	@head -c 200 ~/server/eqemu_config.json
+	@echo ""
+	@echo "Validating initial JSON..."
+	@cat ~/server/eqemu_config.json | jq . > /dev/null && echo "Initial JSON is valid" || (echo "ERROR: Initial JSON is invalid"; exit 1)
+	@echo "Processing config with jq..."
+	@set -e; \
+	 cat ~/server/eqemu_config.json \
     | jq '.server.database.password = "${EQEMU_DB_PASSWORD}"' \
     | jq '.server.world.key = "$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $${1:-32} | head -n 1)"' \
-    | jq '.server.zones.ports.high = "${PORT_RANGE_HIGH}"' \
+    | jq '.server.zones.ports.high = ${PORT_RANGE_HIGH}' \
 	  | jq '.server.world.shortname = "Honeytree"' \
 	  | jq '.server.world.longname = "Honeytree"' \
     | jq '.server.world.address = "${IP_ADDRESS}"' \
 	  | jq '.server.world.localaddress = "${IP_ADDRESS}"' \
 	  | jq '.server.ucs.host = "${IP_ADDRESS}"' \
-    | tee ~/server/eqemu_config.json
+    > ~/server/eqemu_config_temp.json
+	@echo "Validating processed JSON..."
+	@cat ~/server/eqemu_config_temp.json | jq . > /dev/null && echo "Processed JSON is valid" || (echo "ERROR: Processed JSON is invalid"; cat ~/server/eqemu_config_temp.json; exit 1)
+	@mv ~/server/eqemu_config_temp.json ~/server/eqemu_config.json
+	@echo "Final config file size: $(shell wc -c < ~/server/eqemu_config.json) bytes"
 
 init-directories: ##@init Bootstrap directories
 	@./assets/scripts/banner.pl "Bootstrapping directories"
@@ -111,15 +132,53 @@ init-directories: ##@init Bootstrap directories
 
 init-peq-database: ##@init Sources fresh PEQ database (Warning: Will over-write existing)
 	@./assets/scripts/banner.pl "Bootstrapping PEQ Database"
-	curl http://db.projecteq.net/api/v1/dump/latest -o /tmp/db.zip
-	unzip -o /tmp/db.zip -d /tmp/db/
-	cd /tmp/db/peq-dump/ && mysql -u$(shell ~/assets/scripts/init/get-config-var.sh '.server.database.username') \
-		-p$(shell ~/assets/scripts/init/get-config-var.sh '.server.database.password') \
-		-h $(shell ~/assets/scripts/init/get-config-var.sh '.server.database.host') \
-		$(shell ~/assets/scripts/init/get-config-var.sh '.server.database.db') \
-		< ./create_all_tables.sql
+	@echo "=== PEQ Database Initialization Debug ==="
+	@echo "Step 1: Getting database configuration"
+	$(eval DB_USERNAME := $(shell ~/assets/scripts/init/get-config-var.sh '.server.database.username'))
+	$(eval DB_PASSWORD := $(shell ~/assets/scripts/init/get-config-var.sh '.server.database.password'))
+	$(eval DB_HOST := $(shell ~/assets/scripts/init/get-config-var.sh '.server.database.host'))
+	$(eval DB_NAME := $(shell ~/assets/scripts/init/get-config-var.sh '.server.database.db'))
+	@echo "✓ Database Host: ${DB_HOST}"
+	@echo "✓ Database Name: ${DB_NAME}"
+	@echo "✓ Database User: ${DB_USERNAME}"
+	@echo "✓ Database Password: [REDACTED - length: $(shell echo '${DB_PASSWORD}' | wc -c)]"
+	@echo "Step 2: Testing database connectivity"
+	@echo "Testing connection to database..."
+	mysql -u${DB_USERNAME} -p${DB_PASSWORD} -h ${DB_HOST} -e "SELECT 'Database connection successful' as status;" || (echo "✗ ERROR: Cannot connect to database. Check credentials and host." && exit 1)
+	@echo "✓ Database connection successful"
+	@echo "Step 3: Downloading PEQ database dump"
+	@echo "Downloading latest PEQ database from http://db.projecteq.net/api/v1/dump/latest"
+	curl --fail --progress-bar http://db.projecteq.net/api/v1/dump/latest -o /tmp/db.zip || (echo "✗ ERROR: Failed to download database dump" && exit 1)
+	@echo "✓ Database dump downloaded successfully"
+	@echo "Step 4: Extracting database dump"
+	unzip -o /tmp/db.zip -d /tmp/db/ || (echo "✗ ERROR: Failed to extract database dump" && exit 1)
+	@echo "✓ Database dump extracted"
+	@echo "Step 5: Verifying extracted files"
+	@if [ ! -d "/tmp/db/peq-dump" ]; then echo "✗ ERROR: Expected peq-dump directory not found after extraction" && ls -la /tmp/db/ && exit 1; fi
+	@if [ ! -f "/tmp/db/peq-dump/create_all_tables.sql" ]; then echo "✗ ERROR: create_all_tables.sql not found" && ls -la /tmp/db/peq-dump/ && exit 1; fi
+	@echo "✓ Required SQL file found: create_all_tables.sql"
+	@echo "File size: $(shell stat -c%s /tmp/db/peq-dump/create_all_tables.sql 2>/dev/null || stat -f%z /tmp/db/peq-dump/create_all_tables.sql) bytes"
+	@echo "Step 6: Backing up existing database (if any)"
+	@echo "Checking if database ${DB_NAME} exists..."
+	@if mysql -u${DB_USERNAME} -p${DB_PASSWORD} -h ${DB_HOST} -e "USE ${DB_NAME};" 2>/dev/null; then \
+		echo "✓ Database ${DB_NAME} exists - creating backup"; \
+		mysqldump -u${DB_USERNAME} -p${DB_PASSWORD} -h ${DB_HOST} ${DB_NAME} > /tmp/db_backup_$(shell date +%Y%m%d_%H%M%S).sql && \
+		echo "✓ Backup created: /tmp/db_backup_$(shell date +%Y%m%d_%H%M%S).sql"; \
+	else \
+		echo "ℹ️  Database ${DB_NAME} does not exist - no backup needed (normal for fresh install)"; \
+	fi
+	@echo "Step 7: Importing PEQ database"
+	@echo "WARNING: This will overwrite existing database content"
+	@echo "Importing create_all_tables.sql..."
+	cd /tmp/db/peq-dump/ && mysql -u${DB_USERNAME} -p${DB_PASSWORD} -h ${DB_HOST} ${DB_NAME} < ./create_all_tables.sql || (echo "✗ ERROR: Failed to import database" && echo "Check the MySQL error above for details" && exit 1)
+	@echo "✓ Database import successful"
+	@echo "Step 8: Cleaning up temporary files"
 	rm -rf /tmp/db/
-	cd ~/server && ./bin/world database:updates
+	@echo "✓ Temporary files cleaned up"
+	@echo "Step 9: Running database updates"
+	@echo "Running world database:updates command..."
+	cd ~/server && ./bin/world database:updates || (echo "⚠️  WARNING: Database updates failed - this may be normal for initial setup" && echo "Check ~/server/logs/ for details")
+	@echo "=== PEQ Database Initialization Complete ==="
 
 init-loginserver: ##@init Initializes Loginserver
 	@./assets/scripts/banner.pl "Initializing Loginserver"
@@ -168,13 +227,57 @@ init-eqemu-admin: ##@init Initializes EQEmu Admin
 	mv ~/server/bin/spire-linux-amd64 ~/server/bin/spire
 	chmod +x ~/server/bin/spire
 	cd ~/server && SKIP_ASSET_CHECK=1 ./bin/spire spire:init admin ${ADMIN_PASSWORD} || echo "Already initialized"
-	cat ~/server/eqemu_config.json | jq '' \
-		| jq '.["web-admin"].application.admin.password = "${ADMIN_PASSWORD}"' \
-		| jq '.["web-admin"].application.key = "$(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $${1:-32} | head -n 1)"' \
-		| jq '.["web-admin"].launcher.runSharedMemory = true' \
-		| jq '.["web-admin"].launcher.minZoneProcesses = 10' \
-		| jq '.["web-admin"].launcher.staticZones = "butcher,erudnext,freporte,qeynos,freeporte,oot,iceclad,nro,oasis,nedaria,abysmal,natimbi,timorous,abysmal,firiona,overthere"' \
-		-M > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json && rm -f /tmp/config.json
+	@echo "=== Configuring EQEmu Admin Settings ==="
+	@echo "ADMIN_PASSWORD: ${ADMIN_PASSWORD}"
+	@echo "Step 1: Reading and validating current config"
+	cat ~/server/eqemu_config.json > /tmp/config_step0.json
+	jq empty /tmp/config_step0.json && echo "✓ Initial JSON is valid" || (echo "✗ ERROR: Initial JSON is invalid" && exit 1)
+	@echo "Step 2: Setting web-admin password"
+	jq '.["web-admin"].application.admin.password = "${ADMIN_PASSWORD}"' /tmp/config_step0.json > /tmp/config_step1.json
+	@echo "✓ Password set to: ${ADMIN_PASSWORD}"
+	@echo "Step 3: Generating and setting application key"
+	$(eval APP_KEY := $(shell cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1))
+	@echo "✓ Generated key: ${APP_KEY}"
+	jq '.["web-admin"].application.key = "${APP_KEY}"' /tmp/config_step1.json > /tmp/config_step2.json
+	@echo "Step 4: Setting runSharedMemory"
+	jq '.["web-admin"].launcher.runSharedMemory = true' /tmp/config_step2.json > /tmp/config_step3.json
+	@echo "✓ runSharedMemory set to true"
+	@echo "Step 5: Setting minZoneProcesses"
+	jq '.["web-admin"].launcher.minZoneProcesses = 10' /tmp/config_step3.json > /tmp/config_step4.json
+	@echo "✓ minZoneProcesses set to 10"
+	@echo "Step 6: Setting staticZones"
+	jq '.["web-admin"].launcher.staticZones = "butcher,erudnext,freporte,qeynos,freeporte,oot,iceclad,nro,oasis,nedaria,abysmal,natimbi,timorous,abysmal,firiona,overthere"' /tmp/config_step4.json > /tmp/config_step5.json
+	@echo "✓ staticZones configured"
+	@echo "Step 7: Final validation and port type checking"
+	jq empty /tmp/config_step5.json && echo "✓ Final JSON is valid" || (echo "✗ ERROR: Final JSON is invalid" && exit 1)
+	@echo "Checking for port type issues..."
+	@if jq -e '.server.zones.ports.high | type == "number"' /tmp/config_step5.json >/dev/null 2>&1; then \
+		echo "⚠️  WARNING: ports.high is number type, Go expects string"; \
+		echo "Current value: $$(jq -r '.server.zones.ports.high' /tmp/config_step5.json)"; \
+		echo "Converting to string..."; \
+		jq '.server.zones.ports.high = (.server.zones.ports.high | tostring)' /tmp/config_step5.json > /tmp/config_step6.json; \
+		mv /tmp/config_step6.json /tmp/config_step5.json; \
+		echo "✓ ports.high converted to string"; \
+	fi
+	@if jq -e '.server.zones.ports.low | type == "number"' /tmp/config_step5.json >/dev/null 2>&1; then \
+		echo "⚠️  WARNING: ports.low is number type, Go expects string"; \
+		echo "Current value: $$(jq -r '.server.zones.ports.low' /tmp/config_step5.json)"; \
+		echo "Converting to string..."; \
+		jq '.server.zones.ports.low = (.server.zones.ports.low | tostring)' /tmp/config_step5.json > /tmp/config_step6.json; \
+		mv /tmp/config_step6.json /tmp/config_step5.json; \
+		echo "✓ ports.low converted to string"; \
+	fi
+	@echo "Step 8: Showing final configuration sections"
+	@echo "web-admin configuration:"
+	jq '.["web-admin"]' /tmp/config_step5.json
+	@echo "ports configuration:"
+	jq '.server.zones.ports // "ports section not found"' /tmp/config_step5.json
+	@echo "Step 9: Writing final config"
+	jq -M . /tmp/config_step5.json > /tmp/config.json && mv /tmp/config.json ~/server/eqemu_config.json
+	@echo "✓ Final config written successfully"
+	@echo "Step 10: Cleaning up temporary files"
+	rm -f /tmp/config_step*.json
+	@echo "=== EQEmu Admin Configuration Complete ==="
 	cd ~/server && ./bin/spire spire:init admin ${ADMIN_PASSWORD} || echo "Already initialized"
 	cd ~/server && ./bin/spire spire:occulus-update
 

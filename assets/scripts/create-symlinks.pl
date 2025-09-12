@@ -7,13 +7,36 @@ use JSON;
 my $json = new JSON();
 
 my $content;
-open(my $fh, '<', "/home/eqemu/server/eqemu_config.json") or die "[create-symlinks] cannot open config file [$filename]"; {
+my $config_file = "/home/eqemu/server/eqemu_config.json";
+
+# Check if config file exists
+if (!-e $config_file) {
+    die "[create-symlinks] config file [$config_file] does not exist";
+}
+
+open(my $fh, '<', $config_file) or die "[create-symlinks] cannot open config file [$config_file]: $!";
+{
     local $/;
     $content = <$fh>;
 }
 close($fh);
 
-my $config = $json->decode($content);
+# Check if content is empty
+if (!$content || length($content) == 0) {
+    die "[create-symlinks] config file [$config_file] is empty";
+}
+
+# Try to decode JSON with better error handling
+my $config;
+eval {
+    $config = $json->decode($content);
+};
+if ($@) {
+    print "[create-symlinks] ERROR: Failed to parse JSON from [$config_file]\n";
+    print "[create-symlinks] JSON error: $@\n";
+    print "[create-symlinks] File content (first 500 chars): " . substr($content, 0, 500) . "\n";
+    die "[create-symlinks] Cannot continue with malformed JSON config";
+}
 
 #########################################
 # paths
