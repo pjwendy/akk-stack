@@ -52,6 +52,7 @@ my $opcodes_server_directory = $server_path . "/" . $config->{"server"}{"directo
 # server binaries
 #########################################
 my @binaries = (
+    "eqlaunch",
     "export_client_files",
     "import_client_files",
     "loginserver",
