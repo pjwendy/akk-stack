@@ -20,14 +20,14 @@ services:
     image: eqemulator/eqemu-server:v16
     volumes:
       - ./server:/home/eqemu/server:delegated
-      - ./code:/home/eqemu/code:delegated
+      - ../Server:/home/eqemu/code:delegated
       - ./assets:/home/eqemu/assets:delegated
       - build-cache:/home/eqemu/.ccache/
       - spire-assets:/home/eqemu/.cache/
       - eqemu-var-log:/var/log/
     ports:
-      - ${IP_ADDRESS}:2222:22/tcp
-      - ${IP_ADDRESS}:2222:22/udp
+      - ${IP_ADDRESS}:2224:22/tcp
+      - ${IP_ADDRESS}:2224:22/udp
       - ${IP_ADDRESS}:3000-3010:3000-3010
       - ${IP_ADDRESS}:8080:8080
       - ${IP_ADDRESS}:9001:9001/tcp
@@ -211,8 +211,8 @@ services:
     volumes:
       - ${DATA_PATH_HOST}/charbrowser:/var/www/html
     environment:
-      CHARBROWSER_DB_NAME: mariadb
-      CHARBROWSER_DB_HOST: ${MARIADB_DATABASE}
+      CHARBROWSER_DB_HOST: mariadb
+      CHARBROWSER_DB_NAME: ${MARIADB_DATABASE}
       CHARBROWSER_DB_USER: ${MARIADB_USER}
       CHARBROWSER_DB_PASSWORD: ${MARIADB_PASSWORD}
       CHARBROWSER_DB_PORT: 3306
