@@ -4,6 +4,7 @@
 
 volumes:
   build-cache:
+  eqemu-build:
   spire-assets:
   eqemu-var-log:
   mariadb-var-log:
@@ -23,6 +24,8 @@ services:
       - ../Server:/home/eqemu/code:delegated
       - ./assets:/home/eqemu/assets:delegated
       - build-cache:/home/eqemu/.ccache/
+      # out-of-tree build of ../Server; persists across container recreation
+      - eqemu-build:/home/eqemu/build/
       - spire-assets:/home/eqemu/.cache/
       - eqemu-var-log:/var/log/
     ports:
@@ -52,6 +55,7 @@ services:
       - PEQ_EDITOR_PASSWORD=${PEQ_EDITOR_PASSWORD}
       - IP_ADDRESS=${IP_ADDRESS}
       - PORT_RANGE_HIGH=${PORT_RANGE_HIGH}
+      - EQEMU_BUILD_FROM_SOURCE=${EQEMU_BUILD_FROM_SOURCE:-true}
       - TZ=${TZ}
     tty: true
     networks:

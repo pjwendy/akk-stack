@@ -43,7 +43,7 @@ if ($@) {
 #########################################
 my $code_path                = "/home/eqemu/code/";
 my $patches_source_path      = $code_path . "utils/patches";
-my $binary_path              = "/home/eqemu/code/build/bin";
+my $binary_path              = "/home/eqemu/build/bin";
 my $server_path              = "/home/eqemu/server";
 my $patches_server_directory = $server_path . "/" . $config->{"server"}{"directories"}{"patches"};
 my $opcodes_server_directory = $server_path . "/" . $config->{"server"}{"directories"}{"opcodes"};

@@ -11,6 +11,9 @@ ifndef VERBOSE
 MAKEFLAGS += --no-print-directory
 endif
 
+# ~ contains build/, code/ and server/ directories; targets must not be mistaken for them
+.PHONY: build build-clean init-build init-dev-build deploy-binaries restore-release-binaries init-server-binaries pull-eqemu-code install
+
 #----------------------
 # Terminal
 #----------------------
@@ -299,10 +302,36 @@ init-peq-editor: ##@init Initializes PEQ Editor DB tables
 init-set-perms: ##@init Sets permissions recursively
 	find ~/server ~/.cache ~/assets -not -user eqemu -execdir sudo chown eqemu:eqemu {} \+ 2>/dev/null || true
 
-init-server-binaries: ##@init Initializes server binaries
+init-server-binaries: ##@init Initializes server binaries (release download, or our source build when EQEMU_BUILD_FROM_SOURCE=true)
+ifeq ("$(EQEMU_BUILD_FROM_SOURCE)", "true")
+	@echo "EQEMU_BUILD_FROM_SOURCE=true: skipping release binaries; building ~/code instead"
+	@make build
+	@make deploy-binaries
+else
 	find ~/server/bin -maxdepth 1 -type l ! -exec test -e {} \; -delete 2>/dev/null || true
 	cd ~/server && ./bin/spire eqemu-server:update --release-binaries=true --auto=true
+endif
 	for bin in eqlaunch loginserver queryserv shared_memory ucs world zone; do ln -sf bin/$$bin ~/server/$$bin 2>/dev/null || true; done
+
+EQEMU_BINARIES := eqlaunch export_client_files import_client_files loginserver queryserv shared_memory ucs world zone
+
+deploy-binaries: ##@build Point ~/server/bin at the source build (backs up existing binaries once)
+	@for bin in $(EQEMU_BINARIES); do \
+		if [ ! -x /home/eqemu/build/bin/$$bin ]; then echo "✗ /home/eqemu/build/bin/$$bin missing — run 'make build' first"; exit 1; fi; \
+	done
+	@mkdir -p ~/server/bin.release
+	@for bin in $(EQEMU_BINARIES); do \
+		if [ -f ~/server/bin/$$bin ] && [ ! -L ~/server/bin/$$bin ]; then mv ~/server/bin/$$bin ~/server/bin.release/$$bin; fi; \
+		ln -sfn /home/eqemu/build/bin/$$bin ~/server/bin/$$bin; \
+	done
+	@echo "✓ ~/server/bin now links to /home/eqemu/build/bin ($(shell git -C ~/code rev-parse --abbrev-ref HEAD 2>/dev/null)@$(shell git -C ~/code rev-parse --short HEAD 2>/dev/null))"
+	@echo "  previous binaries kept in ~/server/bin.release (restore with 'make restore-release-binaries')"
+
+restore-release-binaries: ##@build Undo deploy-binaries: restore binaries saved in ~/server/bin.release
+	@for bin in $(EQEMU_BINARIES); do \
+		if [ -f ~/server/bin.release/$$bin ]; then rm -f ~/server/bin/$$bin && cp -p ~/server/bin.release/$$bin ~/server/bin/$$bin; fi; \
+	done
+	@echo "✓ restored binaries from ~/server/bin.release"
 
 init-perl: ##@init Initializes perl - compiles perl from source to /opt/eqemu-perl
 	@./assets/scripts/banner.pl "Initializing Perl"
@@ -342,9 +371,14 @@ pull-maps: ##@assets Pulls maps
 		cd server && wget --progress=bar:force:noscroll https://github.com/EQEmu/maps/releases/latest/download/maps.zip -O /tmp/maps.zip && unzip -o /tmp/maps.zip -d ~/server/maps && rm /tmp/maps.zip || true; \
 	fi
 
-pull-eqemu-code: ##@assets Pulls eqemu code
+pull-eqemu-code: ##@assets Pulls eqemu code (no-op when ~/code is our mounted fork)
 	@./assets/scripts/banner.pl "Pulling EQEmu Source Code into [./code]"
-	git -C ./code pull 2> /dev/null || git clone https://github.com/EQEmu/EQEmu.git code
+	@git config --global --add safe.directory /home/eqemu/code
+	@if [ -d ~/code/.git ]; then \
+		echo "~/code is a mounted checkout ($$(git -C ~/code rev-parse --abbrev-ref HEAD)@$$(git -C ~/code rev-parse --short HEAD)) — managed on the host, not pulling"; \
+	else \
+		git clone https://github.com/EQEmu/EQEmu.git ~/code; \
+	fi
 
 pull-peq-quests: ##@assets Pulls ProjectEQ quests
 	@./assets/scripts/banner.pl "Pulling Latest ProjectEQ Quests"
@@ -376,8 +410,8 @@ init-build: ##@build Initialize build
 	cd ~/code && \
 		git submodule init && \
 		git submodule update
-	rm -rf /home/eqemu/build && \
-		mkdir -p /home/eqemu/build && \
+	mkdir -p /home/eqemu/build && \
+		find /home/eqemu/build -mindepth 1 -delete && \
 		cd /home/eqemu/build && \
 		cmake \
 			-DEQEMU_BUILD_LOGIN=ON \
@@ -396,8 +430,8 @@ init-dev-build: ##@build Initialize build for development (faster compiles, uses
 	cd ~/code && \
 		git submodule init && \
 		git submodule update
-	rm -rf /home/eqemu/build && \
-		mkdir -p /home/eqemu/build && \
+	mkdir -p /home/eqemu/build && \
+		find /home/eqemu/build -mindepth 1 -delete && \
 		cd /home/eqemu/build && \
 		cmake -DEQEMU_BUILD_LOGIN=ON \
 			-DEQEMU_BUILD_TESTS=ON \
@@ -412,10 +446,12 @@ init-dev-build: ##@build Initialize build for development (faster compiles, uses
 
 build: ##@build Build EQEmu server
 	@./assets/scripts/banner.pl "Building EQEmu Server"
-	cd /home/eqemu/build && make
+	@git config --global --add safe.directory /home/eqemu/code
+	@if [ ! -f /home/eqemu/build/CMakeCache.txt ]; then make init-build; fi
+	cmake --build /home/eqemu/build -j $(shell nproc)
 
 build-clean: ##@build Cleans build directory
-	cd /home/eqemu/build && make clean
+	cmake --build /home/eqemu/build --target clean
 
 #----------------------
 # update
