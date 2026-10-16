@@ -121,7 +121,6 @@ init-directories: ##@init Bootstrap directories
 	@./assets/scripts/banner.pl "Bootstrapping directories"
 	sudo chown eqemu:eqemu ~/.cache -R
 	sudo chown eqemu:eqemu ~/server -R
-	sudo chown eqemu:eqemu ~/code -R
 	mkdir -p ~/server/assets
 	mkdir -p ~/server/assets/patches
 	mkdir -p ~/server/assets/opcodes
@@ -146,8 +145,8 @@ init-peq-database: ##@init Sources fresh PEQ database (Warning: Will over-write 
 	mysql -u${DB_USERNAME} -p${DB_PASSWORD} -h ${DB_HOST} -e "SELECT 'Database connection successful' as status;" || (echo "✗ ERROR: Cannot connect to database. Check credentials and host." && exit 1)
 	@echo "✓ Database connection successful"
 	@echo "Step 3: Downloading PEQ database dump"
-	@echo "Downloading latest PEQ database from http://db.projecteq.net/api/v1/dump/latest"
-	curl --fail --progress-bar http://db.projecteq.net/api/v1/dump/latest -o /tmp/db.zip || (echo "✗ ERROR: Failed to download database dump" && exit 1)
+	@echo "Downloading latest PEQ database from GitLab mirror"
+	curl --fail --progress-bar -L https://gitlab.com/TheGrandLibrary/db.projecteq.net-dumps/-/package_files/232952944/download -o /tmp/db.zip || (echo "✗ ERROR: Failed to download database dump" && exit 1)
 	@echo "✓ Database dump downloaded successfully"
 	@echo "Step 4: Extracting database dump"
 	unzip -o /tmp/db.zip -d /tmp/db/ || (echo "✗ ERROR: Failed to extract database dump" && exit 1)
@@ -298,10 +297,12 @@ init-peq-editor: ##@init Initializes PEQ Editor DB tables
     		$(shell ~/assets/scripts/init/get-config-var.sh '.server.database.db') -e 'update peq_admin SET password = MD5("${PEQ_EDITOR_PASSWORD}") where id = 1'
 
 init-set-perms: ##@init Sets permissions recursively
-	find ~/ -not -user eqemu -execdir sudo chown eqemu:eqemu {} \+
+	find ~/server ~/.cache ~/assets -not -user eqemu -execdir sudo chown eqemu:eqemu {} \+ 2>/dev/null || true
 
 init-server-binaries: ##@init Initializes server binaries
+	find ~/server/bin -maxdepth 1 -type l ! -exec test -e {} \; -delete 2>/dev/null || true
 	cd ~/server && ./bin/spire eqemu-server:update --release-binaries=true --auto=true
+	for bin in eqlaunch loginserver queryserv shared_memory ucs world zone; do ln -sf bin/$$bin ~/server/$$bin 2>/dev/null || true; done
 
 init-perl: ##@init Initializes perl - compiles perl from source to /opt/eqemu-perl
 	@./assets/scripts/banner.pl "Initializing Perl"
@@ -374,10 +375,10 @@ init-build: ##@build Initialize build
 	@./assets/scripts/banner.pl "Initializing EQEmu Server Build"
 	cd ~/code && \
 		git submodule init && \
-		git submodule update && \
-		rm -rf build && \
-		mkdir -p build && \
-		cd build && \
+		git submodule update
+	rm -rf /home/eqemu/build && \
+		mkdir -p /home/eqemu/build && \
+		cd /home/eqemu/build && \
 		cmake \
 			-DEQEMU_BUILD_LOGIN=ON \
 			-DEQEMU_BUILD_LUA=ON \
@@ -386,16 +387,18 @@ init-build: ##@build Initialize build
 			-DPERL_EXECUTABLE=/opt/eqemu-perl/bin/perl \
 			-DPERL_INCLUDE_PATH=/opt/eqemu-perl/lib/5.32.1/$(PERL_ARCH)/CORE/ \
 			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-Wno-everything" \
-			-DCMAKE_CXX_COMPILER_LAUNCHER=ccache -G 'Unix Makefiles' ..
+			-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+			"-DVCPKG_INSTALL_OPTIONS=--x-buildtrees-root=/home/eqemu/build/vcpkg-buildtrees" \
+			-G 'Unix Makefiles' ~/code
 
 init-dev-build: ##@build Initialize build for development (faster compiles, uses ninja)
 	@./assets/scripts/banner.pl "Initializing EQEmu Server Build"
 	cd ~/code && \
 		git submodule init && \
-		git submodule update && \
-		rm -rf build && \
-		mkdir -p build && \
-		cd build && \
+		git submodule update
+	rm -rf /home/eqemu/build && \
+		mkdir -p /home/eqemu/build && \
+		cd /home/eqemu/build && \
 		cmake -DEQEMU_BUILD_LOGIN=ON \
 			-DEQEMU_BUILD_TESTS=ON \
 			-DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
@@ -403,14 +406,16 @@ init-dev-build: ##@build Initialize build for development (faster compiles, uses
 			-DPERL_EXECUTABLE=/opt/eqemu-perl/bin/perl \
 			-DPERL_INCLUDE_PATH=/opt/eqemu-perl/lib/5.32.1/$(PERL_ARCH)/CORE/ \
 			-DCMAKE_EXE_LINKER_FLAGS=-fuse-ld=gold \
-			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-O0 -g -Wno-everything -fno-lto" -G "Ninja" ..
+			-DCMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING="-O0 -g -Wno-everything -fno-lto" \
+			"-DVCPKG_INSTALL_OPTIONS=--x-buildtrees-root=/home/eqemu/build/vcpkg-buildtrees" \
+			-G "Ninja" ~/code
 
 build: ##@build Build EQEmu server
 	@./assets/scripts/banner.pl "Building EQEmu Server"
-	cd ~/code/build && make
+	cd /home/eqemu/build && make
 
 build-clean: ##@build Cleans build directory
-	cd ~/code/build && make clean
+	cd /home/eqemu/build && make clean
 
 #----------------------
 # update
