@@ -111,6 +111,20 @@ nohup ./bin/eqlaunch zone >> logs/eqlaunch_zone.log 2>&1 &
       ON DUPLICATE KEY UPDATE rule_value='true';
   " 2>/dev/null
 
+  # Enable expansion 19 (Rain of Fear) — DB has full zone/spawn data through exp 19.
+  # World:ExpansionSettings bitmask 1048575 = 2^20-1, enables bits 0-19 (all expansions).
+  $DB -e "
+    INSERT INTO rule_values (rule_name, rule_value, notes)
+      VALUES ('Expansion:CurrentExpansion', '19', 'Rain of Fear — max expansion with DB content')
+      ON DUPLICATE KEY UPDATE rule_value='19';
+    INSERT INTO rule_values (rule_name, rule_value, notes)
+      VALUES ('World:ExpansionSettings', '1048575', 'All expansions 0-19 enabled')
+      ON DUPLICATE KEY UPDATE rule_value='1048575';
+    INSERT INTO rule_values (rule_name, rule_value, notes)
+      VALUES ('World:CharacterSelectExpansionSettings', '1048575', 'All expansions 0-19 enabled')
+      ON DUPLICATE KEY UPDATE rule_value='1048575';
+  " 2>/dev/null
+
   # Restore GM status for known GM accounts if they exist
   $DB -e "
     UPDATE account SET status=255 WHERE name IN ('bifar','eboola') AND status < 255;
