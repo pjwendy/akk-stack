@@ -3,6 +3,10 @@ set -e
 
 cd /home/eqemu/server
 
+# DB password comes from the environment (EQEMU_DB_PASSWORD, set from MARIADB_PASSWORD in .env),
+# falling back to eqemu_config.json
+DB_PASSWORD="${EQEMU_DB_PASSWORD:-$(jq -r .server.database.password eqemu_config.json)}"
+
 # Create root-level symlinks so eqlaunch can find binaries via ./zone etc.
 for bin in eqlaunch loginserver queryserv shared_memory ucs world zone; do
     ln -sf bin/$bin $bin 2>/dev/null || true
@@ -10,19 +14,19 @@ done
 
 # Wait for MariaDB to be ready before starting anything
 echo "[startup] Waiting for MariaDB..."
-until mysqladmin ping -h mariadb -u eqemu -pIB4sa6WrqKgJHAwpk5Oh --silent 2>/dev/null; do
+until mysqladmin ping -h mariadb -u eqemu -p"$DB_PASSWORD" --silent 2>/dev/null; do
     sleep 2
 done
 echo "[startup] MariaDB ready"
 
 # Create mysqldump credentials file in /tmp (Windows bind mount can't do 600 perms)
 mkdir -p backups
-cat > /tmp/login.my.cnf << 'MYCNF'
+cat > /tmp/login.my.cnf << MYCNF
 [client]
 host=mariadb
 port=3306
 user=eqemu
-password=IB4sa6WrqKgJHAwpk5Oh
+password=$DB_PASSWORD
 protocol=TCP
 MYCNF
 chmod 600 /tmp/login.my.cnf
@@ -65,7 +69,7 @@ nohup ./bin/eqlaunch zone >> logs/eqlaunch_zone.log 2>&1 &
 
 # Background: idempotent bot/rules bootstrap — runs every start, safe to re-run
 (
-  DB="mysql -h mariadb -u eqemu -pIB4sa6WrqKgJHAwpk5Oh peq"
+  DB="mysql -h mariadb -u eqemu -p$DB_PASSWORD peq"
 
   echo "[bootstrap] Waiting for db_version table..."
   until $DB -e "SELECT 1 FROM db_version LIMIT 1;" >/dev/null 2>&1; do
