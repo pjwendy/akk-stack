@@ -410,7 +410,7 @@ init-build: ##@build Initialize build
 	cd ~/code && \
 		git submodule init && \
 		git submodule update
-	mkdir -p /home/eqemu/build && \
+	sudo mkdir -p /home/eqemu/build && sudo chown eqemu:eqemu /home/eqemu/build && \
 		find /home/eqemu/build -mindepth 1 -delete && \
 		cd /home/eqemu/build && \
 		cmake \
@@ -430,7 +430,7 @@ init-dev-build: ##@build Initialize build for development (faster compiles, uses
 	cd ~/code && \
 		git submodule init && \
 		git submodule update
-	mkdir -p /home/eqemu/build && \
+	sudo mkdir -p /home/eqemu/build && sudo chown eqemu:eqemu /home/eqemu/build && \
 		find /home/eqemu/build -mindepth 1 -delete && \
 		cd /home/eqemu/build && \
 		cmake -DEQEMU_BUILD_LOGIN=ON \
