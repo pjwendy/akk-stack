@@ -72,8 +72,9 @@ nohup ./bin/eqlaunch zone >> logs/eqlaunch_zone.log 2>&1 &
     sleep 3
   done
 
-  # Pin bots_version immediately so world skips the crash-prone dump+update cycle
-  $DB -e "UPDATE db_version SET bots_version=9054 WHERE bots_version < 9054;" 2>/dev/null
+  # NOTE: bots_version is no longer pinned. Pinning skipped the bot migrations
+  # (9040-9054), which left bot_spells_entries without spell_id, so bots couldn't
+  # load spells. World applies pending bot migrations itself at startup.
 
   # Apply bot tables bootstrap if core table is absent (fresh DB scenario)
   if ! $DB -e "DESCRIBE bot_data;" >/dev/null 2>&1; then
