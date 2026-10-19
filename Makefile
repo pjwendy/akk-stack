@@ -159,7 +159,7 @@ init-peq-editor: ##@init Initializes PEQ editor
 
 init-charbrowser: ##@init Initializes charbrowser
 	$(DOCKER) build charbrowser && $(DOCKER) up -d charbrowser	
-	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/ && cp include/config.template include/config.php"
+	$(DOCKER) exec charbrowser bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/pjwendy/charbrowser.git /var/www/html && cd /var/www/html/ && cp include/config.template include/config.php && sed -i 's/^\$$cb_show_bots = 0;/\$$cb_show_bots = 1;/' include/config.php"
 	
 init-allakhazam: ##@init Initializes Allakhazam
 	$(DOCKER) build allakhazam && $(DOCKER) up -d allakhazam	
