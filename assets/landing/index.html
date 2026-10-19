@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EQEmu Server</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0d0b; --panel: #1a1714; --panel-2: #241f1a; --line: #3a322a; --text: #ece4d6; --muted: #a39683;
+    --gold: #d8a94a; --gold-2: #f2cf7d; --up: #6fbf73; --down: #d9614c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) { --bg: #f6f1e7; --panel: #fffdf8; --panel-2: #f3ece0; --line: #ddd1bd; --text: #2a231b; --muted: #7a6c58; --gold: #a87a1e; --gold-2: #8a6212; }
+  }
+  :root[data-theme="light"] { --bg: #f6f1e7; --panel: #fffdf8; --panel-2: #f3ece0; --line: #ddd1bd; --text: #2a231b; --muted: #7a6c58; --gold: #a87a1e; --gold-2: #8a6212; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, system-ui, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  h1 { font: 700 clamp(24px, 4vw, 34px) Cinzel, Georgia, serif; color: var(--gold-2); margin: 0; }
+  .sub { color: var(--muted); }
+  h2 { font: 600 17px Cinzel, Georgia, serif; color: var(--gold); margin: 28px 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  a.card { display: block; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 14px 16px; transition: border-color .15s, transform .15s; }
+  a.card:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .desc { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .url { color: var(--gold); font-size: 12px; margin-top: 8px; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.up { background: var(--up); box-shadow: 0 0 8px var(--up); }
+  .dot.down { background: var(--down); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  code { background: var(--panel-2); padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, Consolas, monospace; }
+  .foot { color: var(--muted); font-size: 12px; margin-top: 28px; }
+  button { margin-left: auto; background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <svg width="44" height="44" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 3 56 12v18c0 15-10 26-24 31C18 56 8 45 8 30V12z" fill="none" stroke="var(--gold)" stroke-width="3"/><path d="M24 20h16M24 32h12M24 44h16M24 20v24" stroke="var(--gold-2)" stroke-width="3" stroke-linecap="round"/></svg>
+    <div><h1 id="title">EQEmu Server</h1><div class="sub" id="sub">Everything this server runs, in one place</div></div>
+    <button id="theme" title="Light or dark">◐</button>
+  </header>
+  <div id="groups"></div>
+  <h2>Play</h2>
+  <div class="panel">Point your client at this server: in <code>eqhost.txt</code> put <code id="eqhost"></code>, then log in with your account.</div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+const host = location.hostname || "127.0.0.1";
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const urlOf = l => l.url || `${l.scheme || "http"}://${host}:${l.port}${l.path || "/"}`;
+
+try { const t = localStorage.getItem("theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+document.getElementById("theme").onclick = () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  const next = cur === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("theme", next); } catch (e) {}
+};
+
+async function load(path) {
+  try { const r = await fetch(path, {cache: "no-store"}); return r.ok ? await r.json() : null; } catch (e) { return null; }
+}
+
+// a service answers if the browser can reach it at all (no-cors: we can't read it, only see it's there)
+async function probe(url, dot) {
+  if (!/^https?:/.test(url)) { dot.title = "not checked"; return; }
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 4000);
+  try {
+    await fetch(url, {mode: "no-cors", cache: "no-store", signal: ctl.signal});
+    dot.classList.add("up"); dot.title = "up";
+  } catch (e) {
+    dot.classList.add("down"); dot.title = "not answering";
+  } finally { clearTimeout(timer); }
+}
+
+(async () => {
+  const base = await load("config/links.json") || {groups: []};
+  const local = await load("config/links.local.json") || {groups: []};
+  if (base.title) { document.getElementById("title").textContent = base.title; document.title = base.title; }
+  const groups = [...(base.groups || []), ...(local.groups || [])].filter(g => (g.links || []).length);
+  const root = document.getElementById("groups");
+  for (const g of groups) {
+    const h = document.createElement("h2"); h.textContent = g.title; root.appendChild(h);
+    const grid = document.createElement("div"); grid.className = "grid"; root.appendChild(grid);
+    for (const l of g.links) {
+      const url = urlOf(l);
+      const a = document.createElement("a");
+      a.className = "card"; a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.innerHTML = `<div class="name"><span class="dot"></span>${esc(l.name)}</div><div class="desc">${esc(l.description || "")}</div><div class="url">${esc(url)}</div>`;
+      grid.appendChild(a);
+      probe(url, a.querySelector(".dot"));
+    }
+  }
+  if (!groups.length) root.innerHTML = `<p class="sub">No services listed: run <code>make landing-config</code>.</p>`;
+  document.getElementById("eqhost").textContent = `[LoginServer] Host=${host}:${(base.game || {}).login_port || 5998}`;
+  document.getElementById("foot").textContent = base.generated ? `Links from .env, written ${new Date(base.generated).toLocaleString()}. Your own links go in data/landing/links.local.json.` : "";
+})();
+</script>
+</body>
+</html>

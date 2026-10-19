@@ -248,6 +248,21 @@ services:
       - backend
 
   #############################################
+  # landing page: links to everything above
+  #############################################
+
+  landing:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - ${IP_ADDRESS}:${LANDING_PORT:-8000}:80
+    volumes:
+      - ./assets/landing:/usr/share/nginx/html:ro
+      - ${DATA_PATH_HOST}/landing:/usr/share/nginx/html/config:ro
+    networks:
+      - backend
+
+  #############################################
   # ftp
   #############################################
 

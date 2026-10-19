@@ -102,6 +102,10 @@ ifeq ($(ENABLE_ALLAKHAZAM),true)
 	RUN_SERVICES+= allakhazam
 endif
 
+ifeq ($(ENABLE_LANDING),true)
+	RUN_SERVICES+= landing
+endif
+
 ifeq ($(ENABLE_BACKUP_CRON),true)
 	RUN_SERVICES+= backup-cron
 endif
@@ -268,8 +272,15 @@ watch-processes: ##@workflow Watch processes
 #----------------------
 
 up: ##@docker Bring up eqemu-server and database
+	@bash assets/scripts/landing-config.sh
 	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) up -d eqemu-server mariadb $(RUN_SERVICES)
 	make up-info
+
+landing-config: ##@info Rewrites the landing page's links from .env
+	@bash assets/scripts/landing-config.sh
+
+landing: ##@info Opens the landing page
+	@bash -c 'url=http://$$( [ "${IP_ADDRESS}" = "0.0.0.0" ] && echo localhost || echo ${IP_ADDRESS} ):${LANDING_PORT}; echo "$$url"; (command -v cmd.exe >/dev/null && cmd.exe /c start "" "$$url") || (command -v xdg-open >/dev/null && xdg-open "$$url") || (command -v open >/dev/null && open "$$url") || true' 
 
 down: ##@docker Down all containers
 	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) down --timeout 3
@@ -347,6 +358,9 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "----------------------------------"
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
+ifeq ($(ENABLE_LANDING),true)
+	@echo "> Landing page | http://${IP_ADDRESS}:${LANDING_PORT}   (every link below, with status)"
+endif
 	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ($(ENABLE_PEQ_EDITOR),true)
 	@echo "> PEQ Editor  | http://${IP_ADDRESS}:8081"
@@ -368,6 +382,11 @@ endif
 	@echo "----------------------------------"
 	@echo "Use 'make info' to see passwords"
 	@echo "----------------------------------"
+ifeq ($(ENABLE_LANDING),true)
+ifeq ($(OPEN_LANDING),true)
+	@make landing
+endif
+endif
 
 #----------------------
 # dev
