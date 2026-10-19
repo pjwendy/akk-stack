@@ -280,7 +280,7 @@ landing-config: ##@info Rewrites the landing page's links from .env
 	@bash assets/scripts/landing-config.sh
 
 landing: ##@info Opens the landing page
-	@bash -c 'url=http://$$( [ "${IP_ADDRESS}" = "0.0.0.0" ] && echo localhost || echo ${IP_ADDRESS} ):${LANDING_PORT}; echo "$$url"; (command -v cmd.exe >/dev/null && cmd.exe /c start "" "$$url") || (command -v xdg-open >/dev/null && xdg-open "$$url") || (command -v open >/dev/null && open "$$url") || true' 
+	@bash -c 'ip=$${LANDING_IP:-127.0.0.1}; [ "$$ip" = "0.0.0.0" ] && ip=localhost; url=http://$$ip:${LANDING_PORT}; echo "$$url"; (command -v cmd.exe >/dev/null && cmd.exe /c start "" "$$url") || (command -v xdg-open >/dev/null && xdg-open "$$url") || (command -v open >/dev/null && open "$$url") || true' 
 
 down: ##@docker Down all containers
 	COMPOSE_HTTP_TIMEOUT=1000 $(DOCKER) down --timeout 3
@@ -359,7 +359,7 @@ up-info: ##@info Shows web interfaces during make up
 	@echo "> Web Interfaces"
 	@echo "----------------------------------"
 ifeq ($(ENABLE_LANDING),true)
-	@echo "> Landing page | http://${IP_ADDRESS}:${LANDING_PORT}   (every link below, with status)"
+	@echo "> Landing page | http://$(if $(filter 0.0.0.0,$(LANDING_IP)),localhost,$(or $(LANDING_IP),127.0.0.1)):${LANDING_PORT}   (every link below, with status$(if $(filter true,$(SHOW_LANDING_CREDENTIALS)), and logins,))"
 endif
 	@echo "> EQEmu Admin | http://${IP_ADDRESS}:3000"
 ifeq ($(ENABLE_PEQ_EDITOR),true)

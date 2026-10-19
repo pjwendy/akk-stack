@@ -23,9 +23,15 @@
   .sub { color: var(--muted); }
   h2 { font: 600 17px Cinzel, Georgia, serif; color: var(--gold); margin: 28px 0 10px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
-  a.card { display: block; text-decoration: none; color: inherit; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 12px; padding: 14px 16px; transition: border-color .15s, transform .15s; }
-  a.card:hover { border-color: var(--gold); transform: translateY(-1px); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; transition: border-color .15s; }
+  .card:hover { border-color: var(--gold); }
+  .card a.go { text-decoration: none; color: inherit; display: block; }
+  .logins { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 6px; }
+  .login { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; font-size: 12px; }
+  .login .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .login .who b { color: var(--text); font-weight: 600; }
+  .login .pw { font-family: ui-monospace, Consolas, monospace; color: var(--gold-2); }
+  .login button, .chip { margin: 0; font-size: 11px; padding: 3px 7px; }
   .name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .desc { color: var(--muted); font-size: 13px; margin-top: 4px; }
   .url { color: var(--gold); font-size: 12px; margin-top: 8px; font-family: ui-monospace, Consolas, monospace; word-break: break-all; }
@@ -91,16 +97,33 @@ async function probe(url, dot) {
     const grid = document.createElement("div"); grid.className = "grid"; root.appendChild(grid);
     for (const l of g.links) {
       const url = urlOf(l);
-      const a = document.createElement("a");
-      a.className = "card"; a.href = url; a.target = "_blank"; a.rel = "noopener";
-      a.innerHTML = `<div class="name"><span class="dot"></span>${esc(l.name)}</div><div class="desc">${esc(l.description || "")}</div><div class="url">${esc(url)}</div>`;
-      grid.appendChild(a);
-      probe(url, a.querySelector(".dot"));
+      const card = document.createElement("div");
+      card.className = "card";
+      const web = /^https?:/.test(url);
+      const head = `<div class="name"><span class="dot"></span>${esc(l.name)}</div><div class="desc">${esc(l.description || "")}</div><div class="url">${esc(url)}</div>`;
+      card.innerHTML = (web ? `<a class="go" href="${esc(url)}" target="_blank" rel="noopener">${head}</a>` : head)
+        + ((l.logins || []).length ? `<div class="logins">${l.logins.map((g, i) => `<div class="login">
+            <div class="who">${esc(g.label)}: <b>${esc(g.user)}</b> / <span class="pw" data-i="${i}">••••••••</span></div>
+            <button data-show="${i}">show</button><button data-copy="${i}">copy</button></div>`).join("")}</div>` : "");
+      card.querySelectorAll("[data-show]").forEach(b => b.onclick = () => {
+        const g = l.logins[b.dataset.show], pw = card.querySelector(`.pw[data-i="${b.dataset.show}"]`);
+        const hidden = pw.textContent.startsWith("•");
+        pw.textContent = hidden ? (g.password || "(not set)") : "••••••••";
+        b.textContent = hidden ? "hide" : "show";
+      });
+      card.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+        try { await navigator.clipboard.writeText(l.logins[b.dataset.copy].password || ""); b.textContent = "copied"; }
+        catch (e) { b.textContent = "can't copy"; }
+        setTimeout(() => b.textContent = "copy", 1500);
+      });
+      grid.appendChild(card);
+      probe(url, card.querySelector(".dot"));
     }
   }
   if (!groups.length) root.innerHTML = `<p class="sub">No services listed: run <code>make landing-config</code>.</p>`;
   document.getElementById("eqhost").textContent = `[LoginServer] Host=${host}:${(base.game || {}).login_port || 5998}`;
-  document.getElementById("foot").textContent = base.generated ? `Links from .env, written ${new Date(base.generated).toLocaleString()}. Your own links go in data/landing/links.local.json.` : "";
+  document.getElementById("foot").textContent = base.generated ? `Links from .env, written ${new Date(base.generated).toLocaleString()}. Your own links go in data/landing/links.local.json.`
+    + (base.credentials ? " Logins are shown because SHOW_LANDING_CREDENTIALS=true: keep LANDING_IP=127.0.0.1." : " Logins: make info.") : "";
 })();
 </script>
 </body>
