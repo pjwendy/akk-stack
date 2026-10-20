@@ -178,7 +178,7 @@ init-charbrowser: ##@init Initializes charbrowser
 	
 init-allakhazam: ##@init Initializes Allakhazam
 	$(DOCKER) build allakhazam && $(DOCKER) up -d allakhazam	
-	$(DOCKER) exec allakhazam bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/Akkadius/EQEmuAllakhazamClone.git /var/www/html && cd /var/www/html/ && cp includes/config.template.php includes/config.php"
+	$(DOCKER) exec allakhazam bash -c "git config --global --add safe.directory '*'; chown www-data:www-data -R /var/www/html && git -C /var/www/html pull 2> /dev/null || git clone https://github.com/EQEmuTools/EQEmuAllakhazamClone.git /var/www/html && cd /var/www/html/ && cp includes/config.template.php includes/config.php"
 
 #----------------------
 # Image Management
