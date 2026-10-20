@@ -12,6 +12,12 @@ You can have an entire server running within minutes, configured and ready to go
 
 </p>
 
+# Additions in this fork
+
+**Landing page.** With `ENABLE_LANDING=true` in `.env`, `make up` starts a small page (default `http://127.0.0.1:8000`, set by `LANDING_IP` and `LANDING_PORT`) listing every service's URL and, with `SHOW_LANDING_CREDENTIALS=true`, its logins. `OPEN_LANDING=true` opens it when `make up` finishes; `make landing` opens it any time and `make landing-config` rewrites its links from `.env`. Extra links of your own go in `data/landing/links.local.json` (not in git). Because it can show passwords, keep `LANDING_IP` on `127.0.0.1` or a private network.
+
+**Your own services in the stack.** Put extra Compose services in `docker-compose.local.yml` (not in git) and list the ones `make up` should start in `LOCAL_SERVICES` in `.env` (space-separated). When the file exists, every `make` target uses it alongside `docker-compose.yml`, so your services join the stack, its network and its `.env`.
+
 # Feature Requests
 
 Want a feature that isn't already available? Open an issue with the title "[Feature Request]" and we will see about getting it added
