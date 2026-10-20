@@ -28,6 +28,15 @@ ifeq ("$(ENV)", "development")
 	DOCKER_COMPOSE_CONTEXT = -f docker-compose.yml -f docker-compose.dev.yml
 endif
 
+# docker-compose.local.yml (git-ignored): this deployment's own extra services, run as part of the
+# stack; list the ones to start with "make up" in LOCAL_SERVICES in .env
+ifneq ("$(wildcard docker-compose.local.yml)","")
+ifeq ("$(DOCKER_COMPOSE_CONTEXT)", "")
+	DOCKER_COMPOSE_CONTEXT = -f docker-compose.yml
+endif
+	DOCKER_COMPOSE_CONTEXT += -f docker-compose.local.yml
+endif
+
 DOCKER=docker-compose $(DOCKER_COMPOSE_CONTEXT)
 
 #----------------------
@@ -109,6 +118,8 @@ endif
 ifeq ($(ENABLE_BACKUP_CRON),true)
 	RUN_SERVICES+= backup-cron
 endif
+
+RUN_SERVICES+= $(LOCAL_SERVICES)
 
 $(info RUN_SERVICES = $(RUN_SERVICES))
 
