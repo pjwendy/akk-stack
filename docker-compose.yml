@@ -47,8 +47,8 @@ services:
       - ${IP_ADDRESS}:9500:9500/tcp
       - ${IP_ADDRESS}:9500:9500/udp
       - ${IP_ADDRESS}:${PORT_RANGE_LOW:-7000}-${PORT_RANGE_HIGH}:${PORT_RANGE_LOW:-7000}-${PORT_RANGE_HIGH}/udp
-      # headless client gateway: host loopback only, regardless of IP_ADDRESS
-      - 127.0.0.1:${HEADLESS_PORT:-9100}:9100/tcp
+      # headless client gateway: host loopback unless HEADLESS_IP says otherwise (e.g. a private LAN address)
+      - ${HEADLESS_IP:-127.0.0.1}:${HEADLESS_PORT:-9100}:9100/tcp
     environment:
       - SPIRE_PORT=${SPIRE_PORT:-3000}
       - SPIRE_ADMIN_PASSWORD=${SPIRE_ADMIN_PASSWORD:-}
@@ -82,8 +82,8 @@ services:
       args:
         - INNODB_BUFFER_POOL_SIZE=${INNODB_BUFFER_POOL_SIZE:-256MB}
     ports:
-      # host loopback only; containers reach mariadb over the backend network
-      - 127.0.0.1:3306:3306
+      # host loopback unless MARIADB_IP says otherwise; containers reach mariadb over the backend network
+      - ${MARIADB_IP:-127.0.0.1}:3306:3306
     volumes:
       - ${DATA_PATH_HOST}/mariadb:/var/lib/mysql:delegated
       - mariadb-var-log:/var/log/mysql/
