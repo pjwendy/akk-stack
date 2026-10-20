@@ -31,6 +31,9 @@
   .login .who { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .login .who b { color: var(--text); font-weight: 600; }
   .login .pw { font-family: ui-monospace, Consolas, monospace; color: var(--gold-2); }
+  .login .full { grid-column: 1 / -1; font-family: ui-monospace, Consolas, monospace; color: var(--gold-2);
+    word-break: break-all; user-select: all; background: var(--line); border-radius: 6px; padding: 4px 6px; display: none; }
+  .login .full.on { display: block; }
   .login button, .chip { margin: 0; font-size: 11px; padding: 3px 7px; }
   .name { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .desc { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -104,16 +107,17 @@ async function probe(url, dot) {
       card.innerHTML = (web ? `<a class="go" href="${esc(url)}" target="_blank" rel="noopener">${head}</a>` : head)
         + ((l.logins || []).length ? `<div class="logins">${l.logins.map((g, i) => `<div class="login">
             <div class="who">${esc(g.label)}: <b>${esc(g.user)}</b> / <span class="pw" data-i="${i}">••••••••</span></div>
-            <button data-show="${i}">show</button><button data-copy="${i}">copy</button></div>`).join("")}</div>` : "");
+            <button data-show="${i}">show</button><button data-copy="${i}">copy</button>
+            <div class="full" data-full="${i}">${esc(g.password || "(not set)")}</div></div>`).join("")}</div>` : "");
       card.querySelectorAll("[data-show]").forEach(b => b.onclick = () => {
-        const g = l.logins[b.dataset.show], pw = card.querySelector(`.pw[data-i="${b.dataset.show}"]`);
-        const hidden = pw.textContent.startsWith("•");
-        pw.textContent = hidden ? (g.password || "(not set)") : "••••••••";
-        b.textContent = hidden ? "hide" : "show";
+        // the whole password on its own line (wrapped, click to select it), not squeezed into the row
+        const full = card.querySelector(`[data-full="${b.dataset.show}"]`);
+        const on = full.classList.toggle("on");
+        b.textContent = on ? "hide" : "show";
       });
       card.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
-        try { await navigator.clipboard.writeText(l.logins[b.dataset.copy].password || ""); b.textContent = "copied"; }
-        catch (e) { b.textContent = "can't copy"; }
+        const text = l.logins[b.dataset.copy].password || "";
+        b.textContent = (await copyText(text)) ? "copied" : "can't copy";
         setTimeout(() => b.textContent = "copy", 1500);
       });
       grid.appendChild(card);
@@ -125,6 +129,19 @@ async function probe(url, dot) {
   document.getElementById("foot").textContent = base.generated ? `Links from .env, written ${new Date(base.generated).toLocaleString()}. Your own links go in data/landing/links.local.json.`
     + (base.credentials ? " Logins are shown because SHOW_LANDING_CREDENTIALS=true: keep LANDING_IP=127.0.0.1." : " Logins: make info.") : "";
 })();
+
+// The clipboard API only works on https or localhost; over plain http on a LAN address fall back to
+// selecting a hidden text box and the older copy command.
+async function copyText(text) {
+  try { if (window.isSecureContext && navigator.clipboard) { await navigator.clipboard.writeText(text); return true; } } catch (e) {}
+  const t = document.createElement("textarea");
+  t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+  document.body.appendChild(t); t.select();
+  let ok = false;
+  try { ok = document.execCommand("copy"); } catch (e) {}
+  t.remove();
+  return ok;
+}
 </script>
 </body>
 </html>
