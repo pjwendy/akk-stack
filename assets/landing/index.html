@@ -116,9 +116,20 @@ async function probe(url, dot) {
         b.textContent = on ? "hide" : "show";
       });
       card.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
-        const text = l.logins[b.dataset.copy].password || "";
-        b.textContent = (await copyText(text)) ? "copied" : "can't copy";
-        setTimeout(() => b.textContent = "copy", 1500);
+        const i = b.dataset.copy, text = l.logins[i].password || "";
+        if (await copyText(text)) {
+          b.textContent = "copied";
+        } else {
+          // the browser won't let us: show it, selected, so Ctrl+C (Cmd+C) copies it
+          const full = card.querySelector(`[data-full="${i}"]`);
+          full.classList.add("on");
+          card.querySelector(`[data-show="${i}"]`).textContent = "hide";
+          const range = document.createRange();
+          range.selectNodeContents(full);
+          const sel = getSelection(); sel.removeAllRanges(); sel.addRange(range);
+          b.textContent = "Ctrl+C";
+        }
+        setTimeout(() => b.textContent = "copy", 2500);
       });
       grid.appendChild(card);
       probe(url, card.querySelector(".dot"));
