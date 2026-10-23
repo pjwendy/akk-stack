@@ -58,6 +58,7 @@ services:
       - IP_ADDRESS=${IP_ADDRESS}
       - PORT_RANGE_HIGH=${PORT_RANGE_HIGH}
       - EQEMU_BUILD_FROM_SOURCE=${EQEMU_BUILD_FROM_SOURCE:-true}
+      - PROCESS_WATCHER_IGNORE=${PROCESS_WATCHER_IGNORE:-}
       - TZ=${TZ}
     tty: true
     networks:

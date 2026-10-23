@@ -10,6 +10,8 @@ use warnings FATAL => 'all';
 my $seconds_before_kill = 60;
 my $cpu_threshold       = 30;
 my %threshold_data      = ();
+# more processes to leave alone (a regex, from .env), e.g. long-running tools of your own
+my $ignore              = $ENV{PROCESS_WATCHER_IGNORE} // '';
 
 while (1) {
     my $process_list = `ps -eo pcpu,pid,user,args | sort -k 1 -r | head -10`;
@@ -19,6 +21,10 @@ while (1) {
         my @process_data = split(" ", $process);
 
         if ($process =~ /gcc|mysql|wget|unzip|node|go-build|tar|world|JetBrains|vscode|remote-dev-server|gzip/i) {
+            next;
+        }
+
+        if ($ignore ne '' && $process =~ /$ignore/i) {
             next;
         }
 
